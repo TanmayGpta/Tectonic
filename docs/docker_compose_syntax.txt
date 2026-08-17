@@ -1,0 +1,20 @@
+# Docker Compose Syntax Reference Guide
+
+## Ports Specification
+When mapping ports in docker-compose, the correct syntax is a list of strings mapping the host port to the container port.
+Incorrect: ports: 5432:5432
+Incorrect: ports: [5432:5432]
+Correct: 
+ports:
+  - "5432:5432"
+Always wrap port mappings in quotes to avoid YAML parsing errors with base-60 numbers.
+
+## Volumes Specification
+Volumes are used to persist data. The syntax requires mapping a local host directory or named volume to a container path.
+Correct:
+volumes:
+  - ./postgres_data:/var/lib/postgresql/data
+
+## Versioning
+The `version` key at the top of the docker-compose.yml is deprecated in modern Docker Compose implementations, but if used, it should be a string.
+Correct: version: '3.8'
