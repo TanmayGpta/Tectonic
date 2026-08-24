@@ -1,87 +1,34 @@
-import os
-import requests
-import chromadb
-from typing import TypedDict, Optional
 from langgraph.graph import StateGraph, END
-import json
 
-# Configuration
-WINDOWS_IP = "172.22.16.1"
+# Import our modularized components!
+from state import PipelineState
+from agents.observer import observer_node
+from agents.engineer import engineer_node
+from agents.sandbox import sandbox_node
 
-# ==========================================
-# 1. DEFINE THE STATE (The "Memory")
-# ==========================================
-class PipelineState(TypedDict):
-    error_logs: str
-    target_file: str
-    proposed_code: Optional[str]
-    sandbox_status: Optional[str]
-    retry_count: int
+MAX_RETRIES = 3
 
 # ==========================================
-# 2. DEFINE THE NODES (The "Agents")
+# ROUTING LOGIC (The "Loop")
 # ==========================================
-def observer_node(state: PipelineState) -> PipelineState:
-    print("\n👀 [Observer Agent]: Extracting error logs...")
-    # Mocking a common docker-compose port mapping error
-    return {
-        "error_logs": "yaml: line 4: mapping values are not allowed in this context. Found '5432:5432'",
-        "target_file": "docker-compose.yml",
-        "retry_count": state.get("retry_count", 0)
-    }
-
-def engineer_node(state: PipelineState) -> PipelineState:
-    print(f"\n🛠️ [Engineer Agent]: Diagnosing issue in {state['target_file']}...")
-    error = state["error_logs"]
-    
-    # --- RAG RETRIEVAL (Exercise 3) ---
-    print("   🔍 Searching Knowledge Base for related syntax rules...")
-    db_path = os.path.join(os.path.dirname(__file__), "vector_db", "chroma_storage")
-    client = chromadb.PersistentClient(path=db_path)
-    collection = client.get_collection(name="iac_docs")
-    
-    # 1. Embed the error message to search the DB
-    embed_payload = {"model": "nomic-embed-text", "prompt": error}
-    embed_res = requests.post(f"http://{WINDOWS_IP}:11434/api/embeddings", json=embed_payload).json()
-    
-    # 2. Pull the most relevant documentation chunk
-    results = collection.query(query_embeddings=[embed_res["embedding"]], n_results=1)
-    context = results["documents"][0][0]
-    print(f"   📖 Found relevant documentation: '{context[:50]}...'")
-    
-    # --- LLM PROMPTING ---
-    print(f"   🧠 Asking Qwen to generate the fix...")
-    prompt = f"""You are an expert DevOps AI. Fix the broken docker-compose code based on the official documentation provided.
-    
-ERROR LOG:
-{error}
-
-OFFICIAL DOCUMENTATION RULES:
-{context}
-
-Respond ONLY with the complete, fixed raw code for the docker-compose.yml file. Do not include markdown formatting, backticks (```), or explanations. Just the code.
-"""
-    
-    llm_payload = {
-        "model": "qwen2.5-coder:3b",
-        "prompt": prompt,
-        "stream": False
-    }
-    llm_res = requests.post(f"http://{WINDOWS_IP}:11434/api/generate", json=llm_payload).json()
-    fixed_code = llm_res["response"].strip()
-    
-    return {"proposed_code": fixed_code}
-
-def sandbox_node(state: PipelineState) -> PipelineState:
-    print("\n🛡️ [Sandbox Agent]: Validating proposed code...")
-    # For now, we instantly approve it. Later, this will run actual Docker commands.
-    return {"sandbox_status": "SUCCESS"}
+def routing_logic(state: PipelineState) -> str:
+    """Decides where the pipeline goes after the Sandbox runs."""
+    if state["sandbox_status"] == "SUCCESS":
+        print("\n🎉 [Router]: Sandbox Approved! Code is safe. Ending Pipeline.")
+        return "end"
+    elif state["retry_count"] >= MAX_RETRIES:
+        print("\n💀 [Router]: Max retries reached. AI failed to fix the code.")
+        return "end"
+    else:
+        print(f"\n🔄 [Router]: Sandbox Rejected! Sending new error logs back to Engineer...")
+        return "continue"
 
 # ==========================================
-# 3. BUILD THE GRAPH (The "Conveyor Belt")
+# BUILD THE GRAPH (The Orchestrator)
 # ==========================================
 workflow = StateGraph(PipelineState)
 
+# We map our imported node functions to the Graph
 workflow.add_node("observer", observer_node)
 workflow.add_node("engineer", engineer_node)
 workflow.add_node("sandbox", sandbox_node)
@@ -89,12 +36,21 @@ workflow.add_node("sandbox", sandbox_node)
 workflow.set_entry_point("observer")
 workflow.add_edge("observer", "engineer")
 workflow.add_edge("engineer", "sandbox")
-workflow.add_edge("sandbox", END)
+
+# This is where the magic loop happens!
+workflow.add_conditional_edges(
+    "sandbox", 
+    routing_logic, 
+    {
+        "continue": "engineer", # Loop back!
+        "end": END              # Finish!
+    }
+)
 
 app = workflow.compile()
 
 if __name__ == "__main__":
-    print("🚀 Starting Tectonic Pipeline...")
+    print("🚀 Starting Modularized Tectonic Pipeline...")
     
     initial_state = {
         "error_logs": "",
@@ -106,5 +62,6 @@ if __name__ == "__main__":
     
     result = app.invoke(initial_state)
     
-    print("\n✅ Pipeline Finished! Here is the fixed code generated by Qwen:\n")
-    print(result["proposed_code"])
+    if result["sandbox_status"] == "SUCCESS":
+        print("\n✅ Self-Healing Complete! Here is the validated code:\n")
+        print(result["proposed_code"])

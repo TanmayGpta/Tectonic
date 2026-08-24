@@ -1,5 +1,17 @@
-.venv/
-vector_db/
-__pycache__/
-*.pyc
+# Python Environments
 .env
+.venv/
+env/
+venv/
+
+# Byte-compiled / optimized files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Vector DB Storage (These are massive binary files, do not push to GitHub!)
+vector_db/chroma_storage/
+
+# macOS/Windows system files
+.DS_Store
+Thumbs.db
