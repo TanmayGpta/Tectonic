@@ -3,7 +3,7 @@ import requests
 import chromadb
 from state import PipelineState
 
-WINDOWS_IP = "172.22.16.1"
+WINDOWS_IP = "host.docker.internal"
 
 def engineer_node(state: PipelineState) -> PipelineState:
     """Performs RAG to fetch official docs, then asks Qwen LLM to fix the code."""

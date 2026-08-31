@@ -30,13 +30,15 @@ if trigger:
         "target_file": "",
         "proposed_code": None,
         "sandbox_status": None,
-        "retry_count": 0
+        "retry_count": 0,
+        "is_valid_scope": None,
+        "rejection_reason": None
     }
     
     log_container = st.container()
     
     # Stream the graph execution step-by-step
-    with st.spinner("Pipeline active... Qwen is thinking..."):
+    with st.spinner("Pipeline active..."):
         for output in app.stream(initial_state):
             for node_name, node_state in output.items():
                 
@@ -47,6 +49,13 @@ if trigger:
                     if node_name == "observer":
                         st.error(f"👀 **Observer Agent**: Detected pipeline failure in `{node_state.get('target_file')}`\n\n`{node_state.get('error_logs')}`")
                         
+                    elif node_name == "gatekeeper":
+                        if node_state.get("is_valid_scope"):
+                            st.success("✅ **Gatekeeper Guardrail**: Pydantic Validation Passed! Input is within DevOps scope.")
+                        else:
+                            st.error(f"🛑 **Gatekeeper Guardrail**: Input REJECTED!\n\nReason: {node_state.get('rejection_reason')}")
+                            st.stop()
+                            
                     elif node_name == "engineer":
                         st.warning(f"🛠️ **Engineer Agent (Attempt {node_state.get('retry_count')})**: Retrieving RAG context and generating fix via Qwen...")
                         with st.expander("View Generated Code"):

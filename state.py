@@ -7,3 +7,7 @@ class PipelineState(TypedDict):
     proposed_code: Optional[str]
     sandbox_status: Optional[str]
     retry_count: int
+    
+    # New Guardrail States
+    is_valid_scope: Optional[bool]
+    rejection_reason: Optional[str]

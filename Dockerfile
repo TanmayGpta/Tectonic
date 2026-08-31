@@ -7,11 +7,8 @@ WORKDIR /app
 # Copy the requirements file first (for caching)
 COPY requirements.txt ./
 
-# Install dependencies (ignoring errors if requirements.txt is missing/incomplete)
-RUN pip install --no-cache-dir -r requirements.txt || true
-
-# Explicitly install all the required libraries for our pipeline
-RUN pip install streamlit beautifulsoup4 chromadb requests langgraph langchain-core pydantic docker
+# Install dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy the rest of the application code into the container
 COPY . .
@@ -20,4 +17,4 @@ COPY . .
 EXPOSE 8501
 
 # Command to run the Streamlit dashboard
-CMD ["streamlit", "run", "demo_streamlit_rag.py", "--server.address=0.0.0.0"]
+CMD ["streamlit", "run", "dashboard.py", "--server.address=0.0.0.0"]

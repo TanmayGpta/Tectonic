@@ -82,8 +82,9 @@ def scrape_and_embed(url: str):
 if __name__ == "__main__":
     # A list of real-world documentation URLs to scrape and ingest
     target_urls = [
-        "https://docs.docker.com/compose/gettingstarted/",
-        "https://docs.docker.com/compose/compose-file/03-compose-file/"
+        "https://docs.docker.com/get-started/docker-overview/", 
+        "https://docs.docker.com/compose/",
+        "https://developer.hashicorp.com/terraform/intro"
     ]
     
     print("🚀 Starting Enterprise Data Ingestion Pipeline...")

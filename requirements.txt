@@ -1,7 +1,8 @@
+streamlit
+beautifulsoup4
+chromadb
+requests
 langgraph
 langchain-core
 pydantic
-requests
-chromadb
 docker
-python-dotenv
