@@ -27,21 +27,34 @@ def engineer_node(state: PipelineState) -> PipelineState:
     
     print(f"\n🛠️ [Engineer Agent]: Diagnosing issue for '{target_file}' (Attempt {retry_count})...")
     
-    # 1. RAG RETRIEVAL FROM CHROMADB
-    print("   🔍 Searching ChromaDB Knowledge Base for related syntax rules...")
-    db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "vector_db", "chroma_storage")
-    client = chromadb.PersistentClient(path=db_path)
-    collection = client.get_collection(name="iac_docs")
-    
-    # Enrich the embedding query with the target file context
-    query_text = f"{target_file} error: {error}"
-    embed_payload = {"model": "nomic-embed-text", "prompt": query_text}
-    embed_res = requests.post(f"http://{host}:11434/api/embeddings", json=embed_payload, timeout=20).json()
-    
-    # Retrieve the top 2 matching context chunks
-    results = collection.query(query_embeddings=[embed_res["embedding"]], n_results=2)
-    retrieved_docs = results.get("documents", [[]])[0]
-    context = "\n\n".join(retrieved_docs) if retrieved_docs else "Refer to standard syntax specifications."
+    # 1. RAG RETRIEVAL (ChromaDB Vector Store with Fallback to Direct Syntax Docs)
+    print("   🔍 Searching Knowledge Base for related syntax rules...")
+    context = ""
+    try:
+        db_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "vector_db", "chroma_storage")
+        if os.path.exists(db_path):
+            client = chromadb.PersistentClient(path=db_path)
+            collection = client.get_collection(name="iac_docs")
+            query_text = f"{target_file} error: {error}"
+            embed_payload = {"model": "nomic-embed-text", "prompt": query_text}
+            embed_res = requests.post(f"http://{host}:11434/api/embeddings", json=embed_payload, timeout=5).json()
+            results = collection.query(query_embeddings=[embed_res["embedding"]], n_results=2)
+            retrieved_docs = results.get("documents", [[]])[0]
+            if retrieved_docs:
+                context = "\n\n".join(retrieved_docs)
+    except Exception as rag_err:
+        print(f"   ℹ️ Vector store query skipped ({rag_err}). Falling back to syntax docs...")
+
+    if not context:
+        # Fallback to direct docs for cloud/CI environments without local vector store
+        docs_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "docs")
+        rule_file = "terraform_syntax_rules.txt" if (target_file.endswith(".tf") or "terraform" in target_file.lower()) else "docker_compose_syntax.txt"
+        doc_path = os.path.join(docs_dir, rule_file)
+        if os.path.exists(doc_path):
+            with open(doc_path, "r") as df:
+                context = df.read().strip()
+        else:
+            context = "Adhere strictly to official Docker Compose v3.8 and HashiCorp Terraform HCL2 syntax specifications."
 
     # 2. LLM PROMPTING WITH CONTEXT & ORIGINAL MANIFEST
     is_tf = target_file.endswith(".tf") or "terraform" in target_file.lower()
