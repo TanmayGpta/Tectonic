@@ -2,7 +2,7 @@ name: Tectonic Autonomous Self-Healing CI/CD
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, 'test/*', 'feature/*' ]
   pull_request:
     branches: [ main ]
   workflow_dispatch:
