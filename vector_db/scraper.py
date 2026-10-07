@@ -3,8 +3,15 @@ import requests
 from bs4 import BeautifulSoup
 import chromadb
 
-# Configuration
-WINDOWS_IP = "172.22.16.1"
+import sys
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
+try:
+    from utils import get_ollama_host
+except ImportError:
+    def get_ollama_host():
+        return os.getenv("OLLAMA_HOST_IP", "172.22.16.1")
+
 
 def scrape_and_embed(url: str):
     print(f"\n🌐 Scraping URL: {url}")
@@ -61,7 +68,8 @@ def scrape_and_embed(url: str):
             
         embed_payload = {"model": "nomic-embed-text", "prompt": chunk}
         try:
-            embed_res = requests.post(f"http://{WINDOWS_IP}:11434/api/embeddings", json=embed_payload).json()
+            host = get_ollama_host()
+            embed_res = requests.post(f"http://{host}:11434/api/embeddings", json=embed_payload).json()
             
             # Create a unique ID for this chunk based on the URL
             doc_id = f"{url.split('/')[-2]}_chunk_{i}"

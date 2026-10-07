@@ -1,0 +1,124 @@
+# Official HashiCorp Terraform & AWS Provider Syntax Guidelines
+
+## 1. Terraform Core Configuration & Provider Blocks
+Terraform configurations must declare provider requirements using the `terraform` block:
+```hcl
+terraform {
+  required_version = ">= 1.5.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 5.0"
+    }
+  }
+}
+
+provider "aws" {
+  region = "us-east-1"
+}
+```
+
+## 2. Amazon Virtual Private Cloud (AWS VPC) & Subnets
+The `aws_vpc` resource provisions an isolated virtual network:
+```hcl
+resource "aws_vpc" "main" {
+  cidr_block           = "10.0.0.0/16"
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = {
+    Name        = "production-vpc"
+    Environment = "production"
+    ManagedBy   = "Tectonic"
+  }
+}
+
+resource "aws_subnet" "public_subnet" {
+  vpc_id                  = aws_vpc.main.id
+  cidr_block              = "10.0.1.0/24"
+  availability_zone       = "us-east-1a"
+  map_public_ip_on_launch = true
+
+  tags = {
+    Name = "production-public-subnet"
+  }
+}
+
+resource "aws_internet_gateway" "gw" {
+  vpc_id = aws_vpc.main.id
+
+  tags = {
+    Name = "production-igw"
+  }
+}
+```
+
+## 3. AWS Security Group Specification & CIDR Blocks Rule
+CRITICAL TYPE CONSTRAINT:
+In the AWS Provider for Terraform, the `cidr_blocks` attribute within `ingress` and `egress` blocks MUST be defined as a list of strings (`list(string)`).
+Passing a single string scalar (such as `cidr_blocks = "0.0.0.0/0"`) is invalid syntax and triggers:
+`Error: Inappropriate value for attribute "cidr_blocks": list of string required.`
+
+Valid syntax requires enclosing the CIDR block in square brackets:
+`cidr_blocks = ["0.0.0.0/0"]`
+
+Example of valid Security Group:
+```hcl
+resource "aws_security_group" "web_sg" {
+  name        = "production-web-sg"
+  description = "Allow inbound HTTP and HTTPS traffic"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "Allow HTTPS from anywhere"
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow HTTP from anywhere"
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow SSH from bastion network"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["10.0.0.0/16"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name = "web-tier-security-group"
+  }
+}
+```
+
+## 4. AWS Compute Instances (aws_instance)
+Compute resources reference subnets and security groups:
+```hcl
+resource "aws_instance" "web_server" {
+  ami                         = "ami-0c7217cdde317cfec"
+  instance_type               = "t3.micro"
+  subnet_id                   = aws_subnet.public_subnet.id
+  vpc_security_group_ids      = [aws_security_group.web_sg.id]
+  associate_public_ip_address = true
+
+  tags = {
+    Name = "production-web-instance"
+  }
+}
+```
+Notice that `vpc_security_group_ids` must always be a list of security group IDs.

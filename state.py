@@ -8,6 +8,12 @@ class PipelineState(TypedDict):
     sandbox_status: Optional[str]
     retry_count: int
     
-    # New Guardrail States
+    # Guardrail, Sandbox & Telemetry States
     is_valid_scope: Optional[bool]
     rejection_reason: Optional[str]
+    sandbox_logs: Optional[str]
+    original_code: Optional[str]
+    model_choice: Optional[str]
+    
+    # Explainable AI (XAI) State
+    explanation: Optional[str]
