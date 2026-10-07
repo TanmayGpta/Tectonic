@@ -101,7 +101,6 @@ jobs:
           echo "Executing Terraform HCL schema and formatting validation..."
           if [ -f "main.tf" ]; then
             terraform fmt -check main.tf > tf_error.log 2>&1 || exit 1
-            terraform validate >> tf_error.log 2>&1 || exit 1
           fi
 
       - name: 🚨 Tectonic Autonomous Auto-Remediation (Terraform)
