@@ -47,7 +47,11 @@ jobs:
         run: |
           echo "Executing Docker Compose AST and syntax validation..."
           if [ -f "docker-compose.yml" ]; then
-            docker-compose -f docker-compose.yml config > compose_error.log 2>&1 || exit 1
+            if command -v docker-compose &> /dev/null; then
+              docker-compose -f docker-compose.yml config > compose_error.log 2>&1 || exit 1
+            else
+              docker compose -f docker-compose.yml config > compose_error.log 2>&1 || exit 1
+            fi
           fi
 
       - name: 🚨 Tectonic Autonomous Auto-Remediation (Docker Compose)
