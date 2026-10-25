@@ -14,4 +14,36 @@ vector_db/chroma_storage/
 
 # macOS/Windows system files
 .DS_Store
-Thumbs.db
+Thumbs.db.env.*
+!.env.example
+
+# Tooling caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Terraform
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+
+# Tectonic runtime outputs (CI)
+compose_error.log
+tf_error.log
+tectonic_pr_body.md
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Claude Code local settings
+.claude/settings.local.json

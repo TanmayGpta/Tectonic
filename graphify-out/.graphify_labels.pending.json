@@ -1,0 +1,13 @@
+{
+  "0": "Tectonic: Autonomous Infrastructure-as-Code (IaC) Auto-Remediation Engine",
+  "1": "main.py",
+  "2": "requests",
+  "3": "steps",
+  "4": "executor.py",
+  "5": "tectonic-remediate.yml",
+  "6": "cli_remediate.py",
+  "7": "gatekeeper.py",
+  "8": "2_CICD_Pipeline.py",
+  "9": "tectonic-dashboard",
+  "10": "Tectonic"
+}

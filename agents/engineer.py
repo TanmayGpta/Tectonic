@@ -60,6 +60,16 @@ def engineer_node(state: PipelineState) -> PipelineState:
     is_tf = target_file.endswith(".tf") or "terraform" in target_file.lower()
     iac_type = "HashiCorp Terraform (HCL)" if is_tf else "Docker Compose (YAML)"
     
+    # On a retry, show the Engineer its own rejected attempt (error_logs now holds the sandbox error for it)
+    previous_attempt = ""
+    if state.get("sandbox_status") == "FAIL" and state.get("proposed_code"):
+        previous_attempt = f"""
+YOUR PREVIOUS ATTEMPT (REJECTED BY SANDBOX - the ERROR LOG above was produced by this code):
+{state["proposed_code"]}
+
+Do not repeat this attempt. Correct the error it caused while still fixing the original manifest.
+"""
+
     print(f"   🧠 Asking Qwen Coder to generate verified {iac_type} fix...")
     prompt = f"""You are an elite Site Reliability Engineer and Infrastructure-as-Code compiler expert.
 Your task is to fix the syntax or configuration error in the provided {target_file} manifest based on the official documentation rules.
@@ -75,7 +85,7 @@ OFFICIAL DOCUMENTATION RULES:
 
 ORIGINAL MANIFEST CODE:
 {original_code}
-
+{previous_attempt}
 INSTRUCTIONS:
 1. Maintain the full structure and all services/resources of the original code.
 2. Fix the exact syntax or type error identified in the error log.

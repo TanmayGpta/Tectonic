@@ -2,16 +2,8 @@ import os
 import requests
 from dotenv import load_dotenv
 
-# Automatically load environment variables
-env_paths = [
-    os.path.join(os.path.dirname(__file__), ".env"),
-    "/home/tanmay/Archon_IDT/.env",
-    "/home/tanmay/Tectonic/.env"
-]
-for p in env_paths:
-    if os.path.exists(p):
-        load_dotenv(p)
-        break
+# Automatically load environment variables from the project root
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
 
 _CACHED_OLLAMA_HOST = None
 
