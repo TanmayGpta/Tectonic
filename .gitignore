@@ -41,6 +41,7 @@ crash.log
 compose_error.log
 tf_error.log
 tectonic_pr_body.md
+tectonic_summary.json
 
 # Streamlit secrets
 .streamlit/secrets.toml

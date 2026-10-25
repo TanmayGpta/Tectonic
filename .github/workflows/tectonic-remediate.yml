@@ -57,20 +57,26 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           echo "=========================================================="
           echo "🚨 SYNTAX ERROR INTERCEPTED IN docker-compose.yml!"
           echo "Invoking Tectonic 5-Agent LangGraph Self-Healing Engine..."
           echo "=========================================================="
           cat compose_error.log
-          
-          # Execute Tectonic Headless Engine
-          python cli_remediate.py \
+
+          # Execute Tectonic Headless Engine; page the on-call engineer if it gives up
+          if ! python cli_remediate.py \
             --file docker-compose.yml \
             --error-file compose_error.log \
             --model "groq:qwen/qwen3.8-27b" \
-            --output-body tectonic_pr_body.md
-          
+            --output-body tectonic_pr_body.md; then
+            python -m notifier.telegram escalate --file docker-compose.yml --run-url "$RUN_URL"
+            exit 1
+          fi
+
           # Configure Git Bot
           git config user.name "tectonic-bot[bot]"
           git config user.email "tectonic-bot[bot]@users.noreply.github.com"
@@ -82,13 +88,14 @@ jobs:
           git push origin "$BRANCH_NAME"
           
           # Create Official GitHub Pull Request
-          gh pr create \
+          PR_URL=$(gh pr create \
             --title "🤖 [Tectonic-AI] Autonomous Remediation for docker-compose.yml" \
             --body-file tectonic_pr_body.md \
             --base main \
-            --head "$BRANCH_NAME"
-          
-          echo "🎉 Pull Request successfully opened on GitHub!"
+            --head "$BRANCH_NAME")
+
+          echo "🎉 Pull Request successfully opened on GitHub: $PR_URL"
+          python -m notifier.telegram fix --pr-url "$PR_URL" --run-url "$RUN_URL"
           exit 1 # Fail initial broken commit run so evaluators see Red -> Green PR transition
 
       - name: 🔍 Pre-Flight Infrastructure Lint (Terraform)
@@ -106,19 +113,25 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           echo "=========================================================="
           echo "🚨 SCHEMA ERROR INTERCEPTED IN main.tf!"
           echo "Invoking Tectonic 5-Agent LangGraph Self-Healing Engine..."
           echo "=========================================================="
           cat tf_error.log
-          
-          python cli_remediate.py \
+
+          if ! python cli_remediate.py \
             --file main.tf \
             --error-file tf_error.log \
             --model "groq:qwen/qwen3.8-27b" \
-            --output-body tectonic_pr_body.md
-          
+            --output-body tectonic_pr_body.md; then
+            python -m notifier.telegram escalate --file main.tf --run-url "$RUN_URL"
+            exit 1
+          fi
+
           git config user.name "tectonic-bot[bot]"
           git config user.email "tectonic-bot[bot]@users.noreply.github.com"
           
@@ -128,13 +141,14 @@ jobs:
           git commit -m "fix(terraform): autonomous schema remediation for main.tf"
           git push origin "$BRANCH_NAME"
           
-          gh pr create \
+          PR_URL=$(gh pr create \
             --title "🤖 [Tectonic-AI] Autonomous Remediation for main.tf" \
             --body-file tectonic_pr_body.md \
             --base main \
-            --head "$BRANCH_NAME"
-            
-          echo "🎉 Pull Request successfully opened on GitHub!"
+            --head "$BRANCH_NAME")
+
+          echo "🎉 Pull Request successfully opened on GitHub: $PR_URL"
+          python -m notifier.telegram fix --pr-url "$PR_URL" --run-url "$RUN_URL"
           exit 1
 
       - name: ✅ Clean Infrastructure Status

@@ -9,6 +9,12 @@ load_dotenv()
 from main import app
 from sandbox.executor import validate_iac
 import difflib
+import json
+
+def write_summary(summary, path):
+    with open(path, "w") as f:
+        json.dump(summary, f, indent=2)
+    print(f"🧾 Run summary written to '{path}'.")
 
 def main():
     parser = argparse.ArgumentParser(description="Tectonic Headless CI/CD Autonomous Remediator")
@@ -17,6 +23,7 @@ def main():
     parser.add_argument("--error-log", help="Raw error string if not using a log file")
     parser.add_argument("--model", default="groq:qwen/qwen3.8-27b", help="Model selector (default: groq:qwen/qwen3.8-27b for sub-second cloud inference)")
     parser.add_argument("--output-body", default="tectonic_pr_body.md", help="Where to output PR markdown description")
+    parser.add_argument("--summary-json", default="tectonic_summary.json", help="Where to output the run summary used for notifications")
     
     args = parser.parse_args()
     
@@ -61,7 +68,19 @@ def main():
     }
     
     result = app.invoke(initial_state)
-    
+
+    # Machine-readable outcome for the Telegram notifier (notifier/telegram.py)
+    summary = {
+        "file": args.file,
+        "status": result.get("sandbox_status"),
+        "attempts": result.get("retry_count", 0),
+        "error_logs": error_logs,
+        "rejection_reason": result.get("rejection_reason"),
+        "sandbox_logs": result.get("sandbox_logs"),
+        "explanation": result.get("explanation", ""),
+        "diff": "",
+    }
+
     if result.get("sandbox_status") == "SUCCESS":
         remediated_code = result.get("proposed_code", "")
         explanation = result.get("explanation", "")
@@ -80,7 +99,9 @@ def main():
             tofile=f"b/{args.file}"
         ))
         diff_text = "".join(diff_lines) if diff_lines else "# No line changes detected"
-        
+        summary["diff"] = diff_text
+        write_summary(summary, args.summary_json)
+
         # 3. Write PR Body Markdown
         pr_markdown = f"""## 🌋 Tectonic Autonomous Remediation
 
@@ -107,6 +128,7 @@ Tectonic's **5-Agent LangGraph Engine** autonomously diagnosed the root cause, s
         print(f"📄 Pull Request body written to '{args.output_body}'.")
         sys.exit(0)
     else:
+        write_summary(summary, args.summary_json)
         print("❌ Tectonic was unable to achieve zero-regression remediation within retry limits.")
         sys.exit(1)
 

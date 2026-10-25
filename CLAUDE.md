@@ -9,7 +9,8 @@ Autonomous IaC auto-remediation engine. A broken `docker-compose.yml` or `main.t
 - `agents/` — one node per file, each returns a **partial** state dict.
   - `observer.py` ingest log (falls back to a mock error), `gatekeeper.py` keyword fast-path + LLM/Pydantic scope check, `engineer.py` RAG (Chroma → fallback `docs/*.txt`) + fix generation, `reviewer.py` the sandbox node (wraps `sandbox/executor.py`), `explainer.py` XAI markdown, `gitops.py` builds a *simulated* PR payload for the UI (not a real PR).
 - `sandbox/executor.py` — `validate_iac(code, target_file)` dispatches to `docker/compose:1.29.2` (`config`) or `hashicorp/terraform:latest` (`fmt -check` + regex semantic check). Needs Docker socket.
-- `cli_remediate.py` — headless runner used by CI; overwrites the target file on success and writes a PR body markdown.
+- `cli_remediate.py` — headless runner used by CI; overwrites the target file on success and writes a PR body markdown + `tectonic_summary.json`.
+- `notifier/` — `telegram.py` pushes fix/escalation alerts from CI (no-op without creds); `telegram_bot.py` is a long-polling listener that turns the alert's Approve/Reject buttons into GitHub merge/close calls (only for `TELEGRAM_CHAT_ID`).
 - `dashboard.py` + `pages/` — Streamlit console (main studio, RAG playground, CI/CD simulator).
 - `vector_db/` — `scraper.py` / `build_db.py` populate ChromaDB at `vector_db/chroma_storage/` (gitignored) with `nomic-embed-text` embeddings. `inject_rule.py` adds a demo compliance rule.
 - `.github/workflows/tectonic-remediate.yml` — lints compose + terraform on push; on failure runs the CLI with Groq and opens a PR via `gh`.
@@ -19,7 +20,7 @@ Autonomous IaC auto-remediation engine. A broken `docker-compose.yml` or `main.t
 `model_choice` strings are `provider:model`: `ollama:<m>` (default `ollama:qwen2.5-coder:3b`), `groq:<m>`, `nvidia:<m>`. Add providers inside `query_llm`, never call provider APIs from agents directly.
 
 ## Env (`.env`, never commit)
-`GROQ_API_KEY`, `NVIDIA_API_KEY`, `OLLAMA_HOST_IP` (optional override). CI uses repo secrets `GROQ_API_KEY`, `NVIDIA_API_KEY`.
+`GROQ_API_KEY`, `NVIDIA_API_KEY`, `OLLAMA_HOST_IP` (optional override); for the Telegram bot `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `GITHUB_REPO` (owner/repo), `GITHUB_TOKEN` (PAT). CI uses repo secrets `GROQ_API_KEY`, `NVIDIA_API_KEY`, `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`.
 
 ## Run
 ```bash
