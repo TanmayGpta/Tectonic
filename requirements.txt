@@ -8,3 +8,4 @@ pydantic
 docker
 python-dotenv
 pytest
+prometheus-client

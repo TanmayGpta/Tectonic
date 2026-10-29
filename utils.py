@@ -1,6 +1,8 @@
 import os
+import time
 import requests
 from dotenv import load_dotenv
+from metrics import LLM_REQUESTS, LLM_DURATION, split_model
 
 # Automatically load environment variables from the project root
 load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
@@ -42,7 +44,7 @@ def get_ollama_host() -> str:
 
     return "host.docker.internal"
 
-def query_llm(prompt: str, model_choice: str = "ollama:qwen2.5-coder:3b", is_json: bool = False, temperature: float = 0.0) -> str:
+def _call_provider(prompt: str, model_choice: str = "ollama:qwen2.5-coder:3b", is_json: bool = False, temperature: float = 0.0) -> str:
     """
     Unified multi-provider inference engine. Routes requests to either:
     1. Local Ollama (air-gapped, zero-cost, private)
@@ -128,3 +130,16 @@ def query_llm(prompt: str, model_choice: str = "ollama:qwen2.5-coder:3b", is_jso
             
         res = requests.post(f"http://{host}:11434/api/generate", json=payload, timeout=60).json()
         return res.get("response", "").strip()
+
+def query_llm(prompt: str, model_choice: str = "ollama:qwen2.5-coder:3b", is_json: bool = False, temperature: float = 0.0) -> str:
+    """Single LLM entry point: routes via _call_provider and records Prometheus latency/error metrics."""
+    provider, model = split_model(model_choice or "ollama:qwen2.5-coder:3b")
+    start = time.perf_counter()
+    status = "error"
+    try:
+        result = _call_provider(prompt, model_choice, is_json, temperature)
+        status = "success"
+        return result
+    finally:
+        LLM_DURATION.labels(provider, model).observe(time.perf_counter() - start)
+        LLM_REQUESTS.labels(provider, model, status).inc()

@@ -1,0 +1,7 @@
+apiVersion: 1
+providers:
+  - name: tectonic
+    folder: Tectonic
+    type: file
+    options:
+      path: /var/lib/grafana/dashboards

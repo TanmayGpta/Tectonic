@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from main import app
+from metrics import push_metrics
 from sandbox.executor import validate_iac
 import difflib
 import json
@@ -133,4 +134,8 @@ Tectonic's **5-Agent LangGraph Engine** autonomously diagnosed the root cause, s
         sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    finally:
+        # sys.exit raises SystemExit, so this still runs on every exit path
+        push_metrics()

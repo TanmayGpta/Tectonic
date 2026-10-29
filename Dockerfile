@@ -14,7 +14,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose the port Streamlit runs on
-EXPOSE 8501
+EXPOSE 8501 8000
 
 # Command to run the Streamlit dashboard
 CMD ["streamlit", "run", "dashboard.py", "--server.address=0.0.0.0"]

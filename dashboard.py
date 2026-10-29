@@ -2,6 +2,9 @@ import streamlit as st
 import time
 import difflib
 from main import app
+from metrics import start_metrics_server
+
+start_metrics_server()
 
 # Page Configuration
 st.set_page_config(

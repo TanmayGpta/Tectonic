@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  # Streamlit console (dashboard.py) exposes metrics via metrics.start_metrics_server()
+  - job_name: tectonic-console
+    static_configs:
+      - targets: ["host.docker.internal:8000"]
+
+  # One-shot CLI / CI runs push here (PROMETHEUS_PUSHGATEWAY_URL=http://localhost:9091)
+  - job_name: pushgateway
+    honor_labels: true
+    static_configs:
+      - targets: ["pushgateway:9091"]
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

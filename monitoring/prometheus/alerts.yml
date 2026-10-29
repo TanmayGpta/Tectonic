@@ -1,0 +1,40 @@
+groups:
+  - name: tectonic
+    rules:
+      - alert: TectonicHighEscalationRate
+        # More than half of finished remediations in the last hour needed a human
+        expr: |
+          sum(increase(tectonic_remediations_total{outcome="failed"}[1h]))
+            / clamp_min(sum(increase(tectonic_remediations_total{outcome=~"fixed|failed"}[1h])), 1) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Tectonic is escalating >50% of remediations"
+          description: "AI fix success rate dropped; check model choice and RAG context."
+
+      - alert: TectonicLLMProviderErrors
+        expr: sum by (provider, model) (increase(tectonic_llm_requests_total{status="error"}[10m])) > 3
+        labels:
+          severity: warning
+        annotations:
+          summary: "LLM errors from {{ $labels.provider }}:{{ $labels.model }}"
+          description: "More than 3 failed LLM calls in 10m (API key, rate limit or Ollama down)."
+
+      - alert: TectonicSlowSandbox
+        expr: |
+          histogram_quantile(0.95, sum by (le, iac) (rate(tectonic_sandbox_duration_seconds_bucket[15m]))) > 30
+        for: 10m
+        labels:
+          severity: info
+        annotations:
+          summary: "Sandbox p95 > 30s for {{ $labels.iac }}"
+          description: "Docker image pulls or a slow daemon are delaying validation."
+
+      - alert: TectonicConsoleDown
+        expr: up{job="tectonic-console"} == 0
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Tectonic console metrics endpoint unreachable"

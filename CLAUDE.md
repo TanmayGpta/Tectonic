@@ -5,6 +5,8 @@ Autonomous IaC auto-remediation engine. A broken `docker-compose.yml` or `main.t
 ## Layout
 - `main.py` — builds/compiles the LangGraph `app`: observer → gatekeeper → engineer → sandbox → (retry engineer ≤ `MAX_RETRIES`=3 | explainer) → END.
 - `state.py` — `PipelineState` TypedDict shared by all nodes. New state fields go here **and** in every `initial_state` dict (`main.py`, `cli_remediate.py`, `dashboard.py`, `pages/2_CICD_Pipeline.py`).
+- `metrics.py` — Prometheus metrics (`tectonic_*`). Outcomes recorded in `main.py` routers, node timing via `timed_node`, LLM metrics in `query_llm`, sandbox metrics in `agents/reviewer.py`. Streamlit serves `:8000/metrics` (`TECTONIC_METRICS_PORT`); CLI pushes to `PROMETHEUS_PUSHGATEWAY_URL` if set. Keep labels bounded (no file paths).
+- `monitoring/` — Prometheus + Pushgateway + Grafana stack (provisioned dashboard `tectonic-overview`, alert rules). Separate from the root demo `docker-compose.yml`.
 - `utils.py` — `query_llm(prompt, model_choice, is_json, temperature)`: single entry point for all LLM calls; `get_ollama_host()` probes for Ollama.
 - `agents/` — one node per file, each returns a **partial** state dict.
   - `observer.py` ingest log (falls back to a mock error), `gatekeeper.py` keyword fast-path + LLM/Pydantic scope check, `engineer.py` RAG (Chroma → fallback `docs/*.txt`) + fix generation, `reviewer.py` the sandbox node (wraps `sandbox/executor.py`), `explainer.py` XAI markdown, `gitops.py` builds a *simulated* PR payload for the UI (not a real PR).
@@ -29,6 +31,7 @@ streamlit run dashboard.py                                      # console on :85
 python cli_remediate.py --file main.tf --model groq:<model>     # headless; dry-runs sandbox if no --error-log
 python main.py                                                  # graph with mock error
 docker compose up --build                                       # containerised console (mounts docker.sock)
+docker compose -f monitoring/docker-compose.yml up -d           # Prometheus :9090, Pushgateway :9091, Grafana :3000 (admin/tectonic)
 ```
 Tests: `python -m pytest` (`tests/`, no LLM or Docker needed; mock `query_llm` via monkeypatch). For end-to-end checks run `python sandbox/executor.py` and a CLI remediation on a deliberately broken copy of a manifest.
 

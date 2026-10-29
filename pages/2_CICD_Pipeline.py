@@ -8,8 +8,11 @@ import streamlit as st
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from main import app
+from metrics import start_metrics_server
 from agents.gitops import generate_gitops_pull_request
 from sandbox.executor import validate_iac
+
+start_metrics_server()
 
 st.set_page_config(
     page_title="Tectonic | Autonomous CI/CD & GitOps Engine",

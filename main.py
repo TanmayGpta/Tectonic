@@ -7,6 +7,7 @@ from agents.gatekeeper import gatekeeper_node
 from agents.engineer import engineer_node
 from agents.reviewer import sandbox_node
 from agents.explainer import explainer_node
+from metrics import record_remediation, timed_node
 
 MAX_RETRIES = 3
 
@@ -17,6 +18,7 @@ def scope_routing_logic(state: PipelineState) -> str:
     """Decides if the pipeline should proceed based on Pydantic Guardrail."""
     if state.get("is_valid_scope") is False:
         print(f"\n🛑 [Router]: Input rejected by Gatekeeper. Reason: {state['rejection_reason']}")
+        record_remediation(state, "rejected")
         return "end"
     return "continue"
 
@@ -24,9 +26,11 @@ def routing_logic(state: PipelineState) -> str:
     """Decides where the pipeline goes after the Sandbox runs."""
     if state["sandbox_status"] == "SUCCESS":
         print("\n🎉 [Router]: Sandbox Approved! Code is safe. Routing to Explainer Agent (XAI)...")
+        record_remediation(state, "fixed")
         return "explainer"
     elif state["retry_count"] >= MAX_RETRIES:
         print("\n💀 [Router]: Max retries reached. AI failed to fix the code.")
+        record_remediation(state, "failed")
         return "end"
     else:
         print(f"\n🔄 [Router]: Sandbox Rejected! Sending new error logs back to Engineer...")
@@ -37,12 +41,12 @@ def routing_logic(state: PipelineState) -> str:
 # ==========================================
 workflow = StateGraph(PipelineState)
 
-# Register 5 distinct agentic heads
-workflow.add_node("observer", observer_node)
-workflow.add_node("gatekeeper", gatekeeper_node)
-workflow.add_node("engineer", engineer_node)
-workflow.add_node("sandbox", sandbox_node)
-workflow.add_node("explainer", explainer_node)
+# Register 5 distinct agentic heads (each timed for Prometheus)
+workflow.add_node("observer", timed_node("observer", observer_node))
+workflow.add_node("gatekeeper", timed_node("gatekeeper", gatekeeper_node))
+workflow.add_node("engineer", timed_node("engineer", engineer_node))
+workflow.add_node("sandbox", timed_node("sandbox", sandbox_node))
+workflow.add_node("explainer", timed_node("explainer", explainer_node))
 
 # Observer passes log to Gatekeeper
 workflow.set_entry_point("observer")
