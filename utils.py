@@ -78,9 +78,20 @@ def _call_provider(prompt: str, model_choice: str = "ollama:qwen2.5-coder:3b", i
         if is_json:
             payload["response_format"] = {"type": "json_object"}
             
-        res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=40)
-        res.raise_for_status()
-        return res.json()["choices"][0]["message"]["content"].strip()
+        for attempt in range(2):
+            try:
+                res = requests.post("https://api.groq.com/openai/v1/chat/completions", headers=headers, json=payload, timeout=40)
+                if res.status_code == 429 and attempt == 0:
+                    time.sleep(2.5)
+                    continue
+                res.raise_for_status()
+                return res.json()["choices"][0]["message"]["content"].strip()
+            except requests.exceptions.RequestException as e:
+                if os.getenv("NVIDIA_API_KEY"):
+                    print("⚠️ [LLM Engine]: Groq request issue. Seamlessly failing over to NVIDIA NIM...")
+                    return _call_provider(prompt, model_choice="nvidia:meta/llama-3.2-11b-vision-instruct", is_json=is_json, temperature=temperature)
+                if attempt == 1:
+                    raise
 
     elif selected.startswith("nvidia:"):
         model_name = selected.replace("nvidia:", "").strip()
