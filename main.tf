@@ -67,3 +67,4 @@ resource "aws_security_group" "production_web_sg" {
     Name = "prod-web-sg"
   }
 }
+resource "aws_security_group" "bad" { cidr_blocks = ["0.0.0.0/0"]

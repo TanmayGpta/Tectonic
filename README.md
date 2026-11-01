@@ -1,3 +1,9 @@
+./.venv/bin/python3 -m notifier.telegram_bot
+
+git checkout -b test/viva-demo
+echo 'resource "aws_security_group" "bad" { cidr_blocks = ["0.0.0.0/0"]' >> main.tf
+git commit -am "test: invalid security group syntax"
+git push origin test/viva-demo
 # Tectonic: Autonomous Infrastructure-as-Code (IaC) Auto-Remediation Engine
 
 [![Terraform](https://img.shields.io/badge/Terraform-1.5%2B-844FBA?logo=terraform&logoColor=white)](https://www.terraform.io/)
